@@ -1,11 +1,13 @@
 # Submission Readiness Decision
 
-Decision: KILL_ARCHIVE
+Decision: KILL_ARCHIVE.
 
 ICLR main-conference readiness: NO.
 
-Reason: The strongest locally available evidence is synthetic and template-generated. The paper lacks real-robot or high-fidelity simulator validation, implemented learned baselines, manual full-paper related-work depth, and paper-specific empirical figures. These are not recoverable without new external experiments or a substantially new research project.
+Submission-hardening version: v4 real MuJoCo rebuild.
 
-Honest terminal action: archive/kill for ICLR main. Do not submit this paper to ICLR main in its current form.
+Reason: the paper now has real sequential MuJoCo evidence, implemented baselines, stress splits, ablations, uncertainty summaries, and paired deltas. The result is negative: embodied repair memory does not outperform nominal MPC or robust worst-case MPC and is not consistently better than simple global/last repair baselines. The mechanism fails the decisive-baseline test.
 
-Revival condition: rebuild as a real empirical robotics paper with implemented model, strong real baselines, manual related work, and deployment evidence.
+Honest terminal action: archive/kill for ICLR main. Do not submit this paper in its current form.
+
+Revival condition: replace kNN residual memory with a learned repair model and show statistically clear gains on public long-horizon benchmarks or hardware.

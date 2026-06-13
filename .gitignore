@@ -1,4 +1,6 @@
 __pycache__/
+results/*.partial.csv
+results/full_run_*.log
 *.aux
 *.bbl
 *.blg
