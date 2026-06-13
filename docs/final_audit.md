@@ -1,12 +1,13 @@
 # Final Audit
 
-1. Chosen thesis: Embodied Model Repair Memory explores `Store repairs to model beliefs as reusable state, not transient corrective prompts.` for adaptive world models for long-horizon robot tasks.
+1. Chosen thesis: Embodied Model Repair Memory stores physical model-error repairs as reusable state across repeated deployment tasks.
 2. ICLR-main decision: KILL_ARCHIVE.
-3. Submission-hardening version: v3.
-4. Reason: synthetic-only, template-generated evidence cannot support ICLR main-conference robotics claims.
-5. Closest hostile prior work: see `docs/hostile_prior_work.md`, `docs/hostile_prior_work_100_cards.csv`, and `docs/hostile_reviewer_response.md`.
-6. Reproducibility: synthetic code runs, but no real robot or high-fidelity benchmark is reproduced.
-7. Claim-validity status: main-conference claims killed; archive memo retained.
-8. Exact Downloads PDF path: `C:/Users/wangz/Downloads/63.pdf`
-9. GitHub URL: https://github.com/Jason-Wang313/63_embodied_model_repair_memory
-10. Confirmation: no visible Desktop copy was requested or made.
+3. Submission-hardening version: v4.
+4. Evidence: real MuJoCo sequential benchmark with 5,040 main rows and 840 ablation rows.
+5. Main result: repair memory does not beat nominal or robust MPC and is not consistently better than simple repair baselines.
+6. Reproducibility: code, CSVs, paired stats, learning curves, figures, and PDF reproduce locally.
+7. Closest hostile prior work: memory-augmented long-horizon robot policies, scene memory transformers, CALVIN/FurnitureBench-style long-horizon manipulation.
+8. Claim-validity status: killed for ICLR main; real negative evidence retained.
+9. Exact Downloads PDF path: `C:/Users/wangz/Downloads/63.pdf`
+10. GitHub URL: https://github.com/Jason-Wang313/63_embodied_model_repair_memory
+11. Confirmation: no visible Desktop copy was requested or made.

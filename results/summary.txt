@@ -1,16 +1,26 @@
-Submission-hardening experiment for paper 63 embodied_model_repair_memory
-Seven seeds, 600 episodes per seed, strong baselines, ablations, stress sweep, and negative cases.
-observed_only_behavior_clone hidden_mode_shift mean_success=0.4293 ci95=0.0189 tail=0.5707
-observed_only_behavior_clone combined_stress mean_success=0.3091 ci95=0.0123 tail=0.6909
-data_augmentation_wam hidden_mode_shift mean_success=0.4950 ci95=0.0234 tail=0.5050
-data_augmentation_wam combined_stress mean_success=0.4150 ci95=0.0132 tail=0.5850
-scalar_uncertainty_planner hidden_mode_shift mean_success=0.5657 ci95=0.0098 tail=0.4343
-scalar_uncertainty_planner combined_stress mean_success=0.4800 ci95=0.0154 tail=0.5200
-ensemble_disagreement_planner hidden_mode_shift mean_success=0.5902 ci95=0.0211 tail=0.4098
-ensemble_disagreement_planner combined_stress mean_success=0.5302 ci95=0.0100 tail=0.4698
-conformal_risk_filter hidden_mode_shift mean_success=0.6174 ci95=0.0260 tail=0.3826
-conformal_risk_filter combined_stress mean_success=0.5609 ci95=0.0138 tail=0.4391
-proposed_branch_mechanism hidden_mode_shift mean_success=0.6838 ci95=0.0170 tail=0.3162
-proposed_branch_mechanism combined_stress mean_success=0.6543 ci95=0.0114 tail=0.3457
-oracle_branch_upper_bound hidden_mode_shift mean_success=0.7631 ci95=0.0193 tail=0.2369
-oracle_branch_upper_bound combined_stress mean_success=0.7450 ci95=0.0061 tail=0.2550
+Real MuJoCo sequential repair-memory benchmark for paper 63
+seeds=5 episodes_per_seed_split_method=24 splits=nominal,low_friction_shift,high_friction_shift,heavy_object_shift,actuation_bias_shift,combined_shift
+actuation_bias_shift embodied_repair_memory success=0.217+/-0.074 regret=0.074+/-0.019 violation=0.208
+actuation_bias_shift global_average_repair success=0.217+/-0.074 regret=0.098+/-0.026 violation=0.292
+actuation_bias_shift oracle_hidden_deployment success=0.417+/-0.089 regret=0.000+/-0.000 violation=0.008
+actuation_bias_shift robust_worst_case_mpc success=0.233+/-0.076 regret=0.070+/-0.018 violation=0.217
+combined_shift embodied_repair_memory success=0.117+/-0.058 regret=0.134+/-0.022 violation=0.425
+combined_shift global_average_repair success=0.150+/-0.064 regret=0.158+/-0.026 violation=0.550
+combined_shift oracle_hidden_deployment success=0.258+/-0.079 regret=0.000+/-0.000 violation=0.067
+combined_shift robust_worst_case_mpc success=0.150+/-0.064 regret=0.141+/-0.024 violation=0.492
+heavy_object_shift embodied_repair_memory success=0.175+/-0.068 regret=0.082+/-0.019 violation=0.217
+heavy_object_shift global_average_repair success=0.192+/-0.071 regret=0.089+/-0.020 violation=0.258
+heavy_object_shift oracle_hidden_deployment success=0.408+/-0.088 regret=0.000+/-0.000 violation=0.000
+heavy_object_shift robust_worst_case_mpc success=0.200+/-0.072 regret=0.065+/-0.017 violation=0.158
+high_friction_shift embodied_repair_memory success=0.142+/-0.063 regret=0.097+/-0.020 violation=0.225
+high_friction_shift global_average_repair success=0.225+/-0.075 regret=0.116+/-0.025 violation=0.317
+high_friction_shift oracle_hidden_deployment success=0.383+/-0.087 regret=0.000+/-0.000 violation=0.000
+high_friction_shift robust_worst_case_mpc success=0.208+/-0.073 regret=0.088+/-0.020 violation=0.233
+low_friction_shift embodied_repair_memory success=0.058+/-0.042 regret=0.072+/-0.018 violation=0.242
+low_friction_shift global_average_repair success=0.058+/-0.042 regret=0.079+/-0.020 violation=0.267
+low_friction_shift oracle_hidden_deployment success=0.158+/-0.066 regret=0.000+/-0.000 violation=0.008
+low_friction_shift robust_worst_case_mpc success=0.058+/-0.042 regret=0.062+/-0.017 violation=0.200
+nominal embodied_repair_memory success=0.225+/-0.075 regret=0.064+/-0.019 violation=0.233
+nominal global_average_repair success=0.250+/-0.078 regret=0.059+/-0.018 violation=0.233
+nominal oracle_hidden_deployment success=0.325+/-0.084 regret=0.000+/-0.000 violation=0.000
+nominal robust_worst_case_mpc success=0.242+/-0.077 regret=0.047+/-0.016 violation=0.158
