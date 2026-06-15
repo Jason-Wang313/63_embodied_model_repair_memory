@@ -11,3 +11,15 @@
 9. Exact Downloads PDF path: `C:/Users/wangz/Downloads/63.pdf`
 10. GitHub URL: https://github.com/Jason-Wang313/63_embodied_model_repair_memory
 11. Confirmation: no visible Desktop copy was requested or made.
+
+## 2026-06-15 Continuation Audit
+
+Executed `docs/paper63_iclr_submission_execution_plan_20260615.md`.
+
+Additional verification:
+- Python compile passed for `src/run_experiment.py`.
+- CSV finite/schema audit passed for main, paired, ablation, seed, learning-curve, stress, and negative-case result files.
+- LaTeX/PDF rebuild completed and `C:/Users/wangz/Downloads/63.pdf` was refreshed.
+- `C:/Users/wangz/Desktop/63.pdf` is absent.
+
+Decision remains `KILL_ARCHIVE`, not ICLR-main-ready. See `docs/paper63_terminal_audit_20260615.md`.
