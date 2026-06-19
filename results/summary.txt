@@ -1,26 +1,58 @@
-Real MuJoCo sequential repair-memory benchmark for paper 63
-seeds=5 episodes_per_seed_split_method=24 splits=nominal,low_friction_shift,high_friction_shift,heavy_object_shift,actuation_bias_shift,combined_shift
-actuation_bias_shift embodied_repair_memory success=0.217+/-0.074 regret=0.074+/-0.019 violation=0.208
-actuation_bias_shift global_average_repair success=0.217+/-0.074 regret=0.098+/-0.026 violation=0.292
-actuation_bias_shift oracle_hidden_deployment success=0.417+/-0.089 regret=0.000+/-0.000 violation=0.008
-actuation_bias_shift robust_worst_case_mpc success=0.233+/-0.076 regret=0.070+/-0.018 violation=0.217
-combined_shift embodied_repair_memory success=0.117+/-0.058 regret=0.134+/-0.022 violation=0.425
-combined_shift global_average_repair success=0.150+/-0.064 regret=0.158+/-0.026 violation=0.550
-combined_shift oracle_hidden_deployment success=0.258+/-0.079 regret=0.000+/-0.000 violation=0.067
-combined_shift robust_worst_case_mpc success=0.150+/-0.064 regret=0.141+/-0.024 violation=0.492
-heavy_object_shift embodied_repair_memory success=0.175+/-0.068 regret=0.082+/-0.019 violation=0.217
-heavy_object_shift global_average_repair success=0.192+/-0.071 regret=0.089+/-0.020 violation=0.258
-heavy_object_shift oracle_hidden_deployment success=0.408+/-0.088 regret=0.000+/-0.000 violation=0.000
-heavy_object_shift robust_worst_case_mpc success=0.200+/-0.072 regret=0.065+/-0.017 violation=0.158
-high_friction_shift embodied_repair_memory success=0.142+/-0.063 regret=0.097+/-0.020 violation=0.225
-high_friction_shift global_average_repair success=0.225+/-0.075 regret=0.116+/-0.025 violation=0.317
-high_friction_shift oracle_hidden_deployment success=0.383+/-0.087 regret=0.000+/-0.000 violation=0.000
-high_friction_shift robust_worst_case_mpc success=0.208+/-0.073 regret=0.088+/-0.020 violation=0.233
-low_friction_shift embodied_repair_memory success=0.058+/-0.042 regret=0.072+/-0.018 violation=0.242
-low_friction_shift global_average_repair success=0.058+/-0.042 regret=0.079+/-0.020 violation=0.267
-low_friction_shift oracle_hidden_deployment success=0.158+/-0.066 regret=0.000+/-0.000 violation=0.008
-low_friction_shift robust_worst_case_mpc success=0.058+/-0.042 regret=0.062+/-0.017 violation=0.200
-nominal embodied_repair_memory success=0.225+/-0.075 regret=0.064+/-0.019 violation=0.233
-nominal global_average_repair success=0.250+/-0.078 regret=0.059+/-0.018 violation=0.233
-nominal oracle_hidden_deployment success=0.325+/-0.084 regret=0.000+/-0.000 violation=0.000
-nominal robust_worst_case_mpc success=0.242+/-0.077 regret=0.047+/-0.016 violation=0.158
+MuJoCo repeated-deployment repair-memory benchmark for Paper 63, v5
+seeds=8 episodes_per_seed_split_method=32 splits=nominal,low_friction_shift,high_friction_shift,heavy_object_shift,light_object_shift,actuation_bias_shift,obstacle_shift,nonstationary_deployment_shift,combined_shift methods=random_candidate,nominal_mpc,robust_worst_case_mpc,last_repair_memory,global_average_repair,knn_repair_memory_v4,online_ridge_residual,corm_repair_memory_v5,corm_no_safety,corm_no_uncertainty,oracle_hidden_deployment
+terminal_decision=KILL_ARCHIVE
+
+Aggregate method summary:
+corm_no_safety success=0.1701 regret=0.1527 violation=0.3264 trust=0.4326
+corm_no_uncertainty success=0.1662 regret=0.1405 violation=0.2209 trust=0.7877
+corm_repair_memory_v5 success=0.1662 regret=0.1489 violation=0.2882 trust=0.4349
+global_average_repair success=0.1606 regret=0.1627 violation=0.3464 trust=0.4034
+knn_repair_memory_v4 success=0.1719 regret=0.1548 violation=0.3273 trust=0.4079
+last_repair_memory success=0.1302 regret=0.1716 violation=0.3468 trust=0.0538
+nominal_mpc success=0.1306 regret=0.1730 violation=0.3468 trust=0.0000
+online_ridge_residual success=0.1806 regret=0.1488 violation=0.3025 trust=0.7877
+oracle_hidden_deployment success=0.5087 regret=0.0000 violation=0.0022 trust=0.0000
+random_candidate success=0.0204 regret=0.3224 violation=0.4835 trust=0.0000
+robust_worst_case_mpc success=0.1211 regret=0.1446 violation=0.2609 trust=0.0000
+
+CORM split summary:
+actuation_bias_shift corm success=0.1758+/-0.0467 regret=0.1378+/-0.0163 violation=0.2344 trust=0.4414
+combined_shift corm success=0.0781+/-0.0329 regret=0.2068+/-0.0165 violation=0.3867 trust=0.3937
+heavy_object_shift corm success=0.2383+/-0.0523 regret=0.1414+/-0.0172 violation=0.2891 trust=0.4689
+high_friction_shift corm success=0.1484+/-0.0436 regret=0.1441+/-0.0179 violation=0.2539 trust=0.4263
+light_object_shift corm success=0.1289+/-0.0411 regret=0.1386+/-0.0153 violation=0.2695 trust=0.4443
+low_friction_shift corm success=0.1914+/-0.0483 regret=0.1343+/-0.0161 violation=0.2773 trust=0.4543
+nominal corm success=0.3945+/-0.0600 regret=0.0765+/-0.0147 violation=0.1875 trust=0.4872
+nonstationary_deployment_shift corm success=0.0977+/-0.0364 regret=0.2039+/-0.0183 violation=0.3984 trust=0.3607
+obstacle_shift corm success=0.0430+/-0.0249 regret=0.1568+/-0.0159 violation=0.2969 trust=0.4378
+
+Decision audit:
+- aggregate vs nominal_mpc: success_delta=0.0356, regret_improvement=0.0241, violation_delta=-0.0586
+- aggregate vs robust_worst_case_mpc: success_delta=0.0451, regret_improvement=-0.0043, violation_delta=0.0273
+- aggregate vs last_repair_memory: success_delta=0.0360, regret_improvement=0.0227, violation_delta=-0.0586
+- aggregate vs global_average_repair: success_delta=0.0056, regret_improvement=0.0137, violation_delta=-0.0582
+- aggregate vs knn_repair_memory_v4: success_delta=-0.0056, regret_improvement=0.0059, violation_delta=-0.0391
+- aggregate vs online_ridge_residual: success_delta=-0.0143, regret_improvement=-0.0001, violation_delta=-0.0143
+- stress safety failure on nonstationary_deployment_shift vs robust_worst_case_mpc: violation_delta=0.0742
+
+Pairwise stress rows:
+combined_shift vs random_candidate success_delta=0.0625 regret_improvement=0.0763 violation_delta=-0.0625
+combined_shift vs nominal_mpc success_delta=0.0312 regret_improvement=0.0316 violation_delta=-0.0938
+combined_shift vs robust_worst_case_mpc success_delta=0.0195 regret_improvement=-0.0058 violation_delta=0.0117
+combined_shift vs last_repair_memory success_delta=0.0312 regret_improvement=0.0285 violation_delta=-0.0898
+combined_shift vs global_average_repair success_delta=0.0234 regret_improvement=0.0207 violation_delta=-0.0781
+combined_shift vs knn_repair_memory_v4 success_delta=0.0117 regret_improvement=0.0065 violation_delta=-0.0547
+combined_shift vs online_ridge_residual success_delta=-0.0117 regret_improvement=-0.0057 violation_delta=-0.0430
+combined_shift vs corm_no_safety success_delta=-0.0195 regret_improvement=0.0010 violation_delta=-0.0742
+combined_shift vs corm_no_uncertainty success_delta=0.0117 regret_improvement=-0.0178 violation_delta=0.0977
+combined_shift vs oracle_hidden_deployment success_delta=-0.3711 regret_improvement=-0.2068 violation_delta=0.3711
+nonstationary_deployment_shift vs random_candidate success_delta=0.0898 regret_improvement=0.1100 violation_delta=-0.0430
+nonstationary_deployment_shift vs nominal_mpc success_delta=0.0078 regret_improvement=0.0025 violation_delta=-0.0039
+nonstationary_deployment_shift vs robust_worst_case_mpc success_delta=0.0000 regret_improvement=-0.0302 violation_delta=0.0742
+nonstationary_deployment_shift vs last_repair_memory success_delta=0.0156 regret_improvement=0.0040 violation_delta=-0.0078
+nonstationary_deployment_shift vs global_average_repair success_delta=-0.0078 regret_improvement=0.0039 violation_delta=-0.0234
+nonstationary_deployment_shift vs knn_repair_memory_v4 success_delta=-0.0156 regret_improvement=0.0028 violation_delta=-0.0273
+nonstationary_deployment_shift vs online_ridge_residual success_delta=0.0078 regret_improvement=-0.0070 violation_delta=0.0078
+nonstationary_deployment_shift vs corm_no_safety success_delta=0.0000 regret_improvement=-0.0035 violation_delta=-0.0039
+nonstationary_deployment_shift vs corm_no_uncertainty success_delta=0.0391 regret_improvement=-0.0120 violation_delta=0.1016
+nonstationary_deployment_shift vs oracle_hidden_deployment success_delta=-0.3477 regret_improvement=-0.2039 violation_delta=0.3945

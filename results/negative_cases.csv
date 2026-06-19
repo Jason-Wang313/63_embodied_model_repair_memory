@@ -1,4 +1,5 @@
 case,observed,paper_status
-nonrecurring_random_damage,repair memory can retrieve irrelevant residuals,limitation
-semantic_goal_error,physical repair memory cannot fix wrong task specification,limitation
-custom_mujoco_only,evidence supports strong-revise at best without public benchmark/hardware,limitation
+nonrecurring_random_damage,persistent memories can retrieve irrelevant residuals when deployment errors are not recurring,limitation
+semantic_goal_error,physical repair memory cannot correct a wrong task specification or target,limitation
+unobserved_change_point,nonstationary deployment shifts can make stale memory worse than robust or reset baselines,stress_test
+custom_mujoco_only,"without hardware or a public benchmark, positive evidence supports strong-revise at best",limitation

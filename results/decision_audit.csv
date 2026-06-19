@@ -1,0 +1,8 @@
+terminal_decision,reason
+KILL_ARCHIVE,"aggregate vs nominal_mpc: success_delta=0.0356, regret_improvement=0.0241, violation_delta=-0.0586"
+KILL_ARCHIVE,"aggregate vs robust_worst_case_mpc: success_delta=0.0451, regret_improvement=-0.0043, violation_delta=0.0273"
+KILL_ARCHIVE,"aggregate vs last_repair_memory: success_delta=0.0360, regret_improvement=0.0227, violation_delta=-0.0586"
+KILL_ARCHIVE,"aggregate vs global_average_repair: success_delta=0.0056, regret_improvement=0.0137, violation_delta=-0.0582"
+KILL_ARCHIVE,"aggregate vs knn_repair_memory_v4: success_delta=-0.0056, regret_improvement=0.0059, violation_delta=-0.0391"
+KILL_ARCHIVE,"aggregate vs online_ridge_residual: success_delta=-0.0143, regret_improvement=-0.0001, violation_delta=-0.0143"
+KILL_ARCHIVE,stress safety failure on nonstationary_deployment_shift vs robust_worst_case_mpc: violation_delta=0.0742
