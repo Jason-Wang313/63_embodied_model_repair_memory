@@ -1,89 +1,384 @@
 \documentclass{article}
 \usepackage{iclr2026_conference,times}
 \input{math_commands.tex}
-\usepackage{hyperref}
-\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{url}
 
-\title{Embodied Model Repair Memory: A Real MuJoCo Negative Result}
+\hypersetup{
+  colorlinks=false,
+  pdfborder={0 0 1},
+  citebordercolor={1 0.48 0},
+  linkbordercolor={0 0.35 1},
+  urlbordercolor={0 0.60 0}
+}
+
+\IfFileExists{final_numbers.tex}{\input{final_numbers.tex}}{
+\newcommand{\TerminalDecision}{PENDING}
+\newcommand{\MainRawRows}{0}
+\newcommand{\AblationRawRows}{0}
+\newcommand{\MetricRows}{0}
+\newcommand{\PairwiseRows}{0}
+\newcommand{\CORMAggSuccess}{0.0}
+\newcommand{\CORMAggRegret}{0.000}
+\newcommand{\CORMAggViolation}{0.0}
+\newcommand{\CORMAggTrust}{0.000}
+\newcommand{\CORMAggShield}{0.0}
+}
+
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+
+\title{Calibrated Online Repair Memory for Repeated Robot Deployment: A MuJoCo Stress Test}
 \author{Anonymous Authors}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-The original hypothesis behind Embodied Model Repair Memory was that robots should store repairs to physical model beliefs as reusable state rather than treating corrections as transient prompts. We rebuild the idea as a real sequential MuJoCo benchmark with persistent hidden deployment shifts, implemented baselines, ablations, learning curves, and paired deltas. The result is negative. kNN residual repair memory does not beat nominal MPC or robust worst-case MPC, and simple global/last repair baselines are competitive or better in several regimes. This paper is therefore not an ICLR-main submission candidate. The honest terminal decision is \textbf{KILL\_ARCHIVE}. Submission-hardening version: v4.
+Robots deployed repeatedly in the same environment encounter model errors that are neither fully random nor fully captured by a nominal simulator: contact friction can be shifted, actuation can have a persistent gain or angle bias, and obstacles can be displaced. A tempting response is to store previous embodied corrections and reuse them as a repair memory. Earlier versions of this project tested that idea with a nearest-neighbor residual cache and failed. This paper rebuilds the idea into a falsifiable CPU-only MuJoCo benchmark and a stronger method, Calibrated Online Repair Memory (CORM), that treats repair memory as online residual system identification with uncertainty-aware trust and a selective safety shield. We freeze a hostile protocol with \MainRawRows{} main raw rows, \AblationRawRows{} ablation raw rows, nine deployment shifts, strong MPC and memory baselines, paired bootstrap intervals, sign-flip tests, learning curves, and nonstationary stress. The frozen terminal decision is \textbf{\TerminalDecision}. CORM reaches \CORMAggSuccess{}\% aggregate success, \CORMAggRegret{} oracle regret, and \CORMAggViolation{}\% violation rate. We do not claim ICLR-main readiness: without hardware or public benchmark evidence, the correct interpretation is either a strong-revise simulation result or a rigorous kill/archive result, exactly as determined by the frozen gate.
 \end{abstract}
 
-\section{Motivation}
-Long-horizon robot systems repeatedly encounter similar physical model errors: a surface is more slippery than expected, an actuator has a persistent gain error, or an obstacle is shifted relative to the nominal world model. A plausible repair-memory hypothesis is that the system should reuse previous embodied residuals when selecting future actions.
+\section{Introduction}
 
-The v3 version of this paper was archived because it only had synthetic evidence. The v4 rebuild tests the hypothesis in a real MuJoCo sequential benchmark. The goal is not to rescue the paper rhetorically; it is to determine whether the mechanism survives a real evidence gate.
+Model error is often treated as a nuisance to be averaged away, bounded by robust control, or absorbed into a larger learned policy. In repeated robot deployment, however, the same error can appear again and again. A puck slides farther than the nominal contact model predicts on a low-friction surface; a lightweight object rotates more than expected; a pusher has a small angle bias; a calibration error shifts an obstacle. A system that sees these errors once should not necessarily start from zero on the next task.
 
-\section{Benchmark}
-We use a planar MuJoCo contact-pushing task. A pusher moves a cylindrical puck toward a target while avoiding an obstacle. Each split/seed defines a persistent hidden deployment condition: mass, friction, actuation gain, angle bias, lateral bias, and obstacle shift remain fixed across a sequence of tasks. This creates recurring model error that a repair memory could exploit.
+This observation motivates embodied repair memory: store the residual between predicted and observed outcomes, then use that residual to select future actions. The idea is compatible with the model-based planning tradition \citep{mayne2000mpc,williams2017mppi,chua2018pets}, online system identification \citep{ljung1999system,anderson1979optimal}, and memory-based reasoning \citep{aamodt1994case}. It is also dangerous. A residual that helped one contact may be irrelevant for another; a stale memory can survive after a hidden deployment change; a correction that improves final distance can increase obstacle violations. A submission-quality paper therefore cannot merely show a pretty learning curve. It must show where repair memory helps, where it fails, and whether a proposed calibration mechanism is actually better than strong simple baselines.
 
-Each method sees the same deployment streams. The main run uses 5 seeds, 24 episodes per seed/split/method, and six stress splits: nominal, low-friction shift, high-friction shift, heavy-object shift, actuation-bias shift, and combined shift. The full run contains 5,040 main rows and 840 ablation rows.
+The starting point of this work was negative. The previous v4 version implemented a real MuJoCo sequential contact benchmark, but the proposed kNN repair memory did not beat nominal MPC, robust worst-case MPC, or simple global and last-repair memories. That result killed the original claim. We therefore do not present CORM as a cosmetic rename of the old method. We rebuild the mechanism around a narrower thesis:
 
-\section{Methods}
-The proposed embodied repair memory stores residuals between nominal predicted puck displacement and actual MuJoCo displacement. At the next task, it retrieves nearest residuals using action/geometry/context features and corrects nominal candidate rollouts before selecting an action.
+\begin{quote}
+Repeated deployment streams can contain reusable residual structure, but repair memories should be reused only through calibrated online residual models that estimate uncertainty and reduce trust under stale or unsafe evidence.
+\end{quote}
 
-Baselines are random candidate selection, nominal MPC, robust worst-case MPC, last-repair memory, global-average repair, and oracle hidden-deployment selection. Ablations reset memory every episode, remove context features, limit memory capacity, compare global repair, and compare nominal/oracle selectors.
+The central question is not whether memory can be made to look good. The question is whether it survives a hostile review protocol: all methods share the same candidate action library, the same MuJoCo rollouts, the same hidden deployment streams, and the same seeds. The proposed method is compared with random selection, nominal MPC, robust worst-case MPC, last repair, global average repair, the old kNN repair memory, an online ridge residual model without CORM calibration, CORM ablations, and an oracle that is allowed to evaluate the true hidden deployment.
 
-\section{Main Results}
-Table~\ref{tab:main} reports success rates. The proposed method improves over random but fails the decisive-baseline test. It loses to or ties nominal MPC on all splits, loses to robust MPC on most splits, and is not consistently better than global or last repair.
+This paper makes four contributions.
 
-\begin{table}[t]
-\centering
-\caption{Success rate by stress split. Each entry is mean $\pm$ 95 percent CI over 120 episodes.}
-\label{tab:main}
-\small
-\begin{tabular}{lccccc}
-\toprule
-Split & Repair memory & Nominal & Robust & Global repair & Oracle \\
-\midrule
-Nominal & $0.225 \pm 0.075$ & $0.242 \pm 0.077$ & $0.242 \pm 0.077$ & $0.250 \pm 0.078$ & $0.325 \pm 0.084$ \\
-Low friction & $0.058 \pm 0.042$ & $0.058 \pm 0.042$ & $0.058 \pm 0.042$ & $0.058 \pm 0.042$ & $0.158 \pm 0.066$ \\
-High friction & $0.142 \pm 0.063$ & $0.200 \pm 0.072$ & $0.208 \pm 0.073$ & $0.225 \pm 0.075$ & $0.383 \pm 0.087$ \\
-Heavy object & $0.175 \pm 0.068$ & $0.192 \pm 0.071$ & $0.200 \pm 0.072$ & $0.192 \pm 0.071$ & $0.408 \pm 0.088$ \\
-Actuation bias & $0.217 \pm 0.074$ & $0.242 \pm 0.077$ & $0.233 \pm 0.076$ & $0.217 \pm 0.074$ & $0.417 \pm 0.089$ \\
-Combined shift & $0.117 \pm 0.058$ & $0.158 \pm 0.066$ & $0.150 \pm 0.064$ & $0.150 \pm 0.064$ & $0.258 \pm 0.079$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\textbf{A falsifiable repeated-deployment benchmark.} We define a planar MuJoCo pushing task with persistent hidden shifts in mass, friction, actuation gain, angle bias, lateral bias, and obstacle placement. The final protocol has nine stress splits, including a nonstationary split that changes the hidden deployment halfway through the stream.
+
+\textbf{A calibrated residual-memory method.} CORM stores compact tabular residual observations and fits an online ridge residual model. It predicts displacement and violation residuals, estimates uncertainty from residual error and leverage, blends nominal and repaired predictions with a trust coefficient, and activates a selective safety shield only under high predicted risk.
+
+\textbf{Theory for both the positive and negative cases.} We give simple deterministic statements showing when residual memory can improve planning, when calibrated trust bounds damage, and why stale memory can be worse than robust or reset baselines under unobserved change points.
+
+\textbf{A frozen evidence package.} The result package includes raw rows, ablations, learning curves, paired statistics, trust diagnostics, generated tables, validation scripts, and a terminal decision. The final decision is \textbf{\TerminalDecision}; the paper is not presented as ICLR-main ready.
+
+\section{Problem Setup}
+
+\subsection{Repeated deployment with hidden physical parameters}
+
+We consider a stream of manipulation tasks indexed by $t=1,\ldots,T$. At each task, the robot observes a state $x_t$, target $g_t$, obstacle geometry $o_t$, and a finite candidate action set $\mathcal{A}_t$. The robot has a nominal simulator $f_0$ and cost $c_0$, but the real deployment is governed by a hidden parameter $\theta_t$ and dynamics $f_{\theta_t}$. The hidden parameter may persist across a stream, as in ordinary repeated deployment, or change at an unobserved phase boundary, as in our nonstationary stress split.
+
+In our benchmark, $x_t$ is the puck position, $g_t$ is a target point, $o_t$ is a cylindrical obstacle, and $a \in \mathcal{A}_t$ is a parameterized push primitive. The nominal model uses fixed mass and friction. The true deployment changes mass, friction, actuation distance gain, angular bias, lateral bias, and obstacle displacement. Outcomes are generated by MuJoCo \citep{todorov2012mujoco}.
+
+For a candidate action $a$, the nominal simulator predicts a final puck position $\hat y_0(x_t,a)$ and violation indicator $\hat v_0(x_t,a)$. The hidden deployment produces $y_\theta(x_t,a)$ and $v_\theta(x_t,a)$. The residuals are
+\begin{align}
+r_t(a) &= y_\theta(x_t,a)-\hat y_0(x_t,a),\\
+\rho_t(a) &= v_\theta(x_t,a)-\hat v_0(x_t,a).
+\end{align}
+The robot observes these residuals only for the action it executes.
+
+\subsection{Decision objective}
+
+All methods choose one candidate action per task. The evaluation energy is
+\begin{equation}
+E(y,v,e;g)=\|y-g\|_2 + 0.30 v + 0.03 e,
+\end{equation}
+where $e$ is pusher path effort. Success requires final distance at most $0.075$ and no safety violation. Regret is computed against a hidden-deployment oracle that evaluates all candidates under $f_{\theta_t}$ and chooses the minimum true energy action. This oracle is not a deployable policy; it is an upper bound.
+
+\subsection{Why the old kNN memory failed}
+
+The v4 kNN memory stored $(\phi_t,r_t,\rho_t)$ tuples and retrieved nearby residuals by Euclidean distance in hand-designed features $\phi_t$. It failed for three reasons. First, residual reuse is a system-identification problem, not pure nearest-neighbor recall. A lateral bias or gain error induces structured residuals across many actions; kNN retrieval can ignore that structure. Second, the old memory had no calibrated trust. It could use a correction with the same confidence on episode 3 as on episode 30. Third, it had no stale-memory mechanism. A memory that is useful before a hidden change point can become harmful after it.
+
+\section{Calibrated Online Repair Memory}
+
+\subsection{Feature representation}
+
+For each candidate, CORM constructs a compact feature vector $\phi(x_t,g_t,o_t,a,\hat y_0)$ containing the action angle relative to the target direction, push distance, lateral offset, target displacement, nominal final displacement, nominal target error, geometric endpoint error, line-obstacle clearance, obstacle distances, nominal violation, nominal clearance margin, and effort. The feature vector is small and stored as a dense NumPy array. No neural network or GPU is used.
+
+\subsection{Online residual regression}
+
+CORM maintains a bounded memory $\mathcal{D}_t=\{(\phi_i,z_i)\}_{i<t}$, where
+\begin{equation}
+z_i = [r_i^{(x)}, r_i^{(y)}, \rho_i]^\top.
+\end{equation}
+At each update, it fits a ridge model
+\begin{equation}
+\hat B_t = (\Phi_t^\top \Phi_t + \lambda I)^{-1}\Phi_t^\top Z_t.
+\end{equation}
+This is a deliberate CPU-light choice. The goal is not to win by capacity; it is to test whether a calibrated residual object can beat simpler memories under a fair action library. A deep memory model would be a different paper and would require substantially more evidence.
+
+\subsection{Trust and uncertainty}
+
+For a candidate with feature $\phi$, CORM predicts $\hat z=\phi^\top \hat B_t$. It also computes an uncertainty proxy
+\begin{equation}
+u_t(\phi)=\mathrm{RMSE}_t + \beta \sqrt{\phi^\top(\Phi_t^\top\Phi_t+\lambda I)^{-1}\phi} + \frac{\gamma}{\sqrt{|\mathcal{D}_t|}},
+\end{equation}
+where $\mathrm{RMSE}_t$ is the residual error on stored observations. The trust coefficient is
+\begin{equation}
+\alpha_t(\phi)=\min\{\alpha_{\max}, (1-\exp(-|\mathcal{D}_t|/\tau))\exp(-\kappa u_t(\phi))(1-s_t)\},
+\end{equation}
+where $s_t$ is a shock variable increased by unexpectedly large residual prediction errors and decayed after stable observations. The repaired prediction is
+\begin{equation}
+\hat y_t^{\mathrm{rep}}(a)=\hat y_0(a)+\alpha_t(\phi)\hat r_t(a).
+\end{equation}
+
+\subsection{Selective safety shield}
+
+CORM predicts a violation risk by combining nominal violation, predicted violation residual, uncertainty, and nominal clearance. A development run exposed an important failure: continuous low-confidence risk penalties can harm action selection even when no safety intervention is justified. The frozen method therefore uses a selective shield. It applies an additional risk and robust-score penalty only when predicted risk exceeds a high threshold. This makes the safety mechanism auditable: shield activation is reported, and the no-safety ablation is run on the same tasks.
+
+\subsection{Baselines and ablations}
+
+The baseline suite is intentionally strong for a small contact benchmark. Nominal MPC chooses the lowest nominal energy action. Robust worst-case MPC evaluates each action under low-friction, nominal, and high-friction branches and minimizes the worst predicted energy. Last repair and global repair store simple residual summaries. The old kNN memory is retained as `knn\_repair\_memory\_v4'. Online ridge residual uses the same residual regression family but removes CORM's calibrated uncertainty and safety behavior. Ablations remove safety, remove uncertainty, remove context features, and restrict memory capacity.
+
+\section{Theory: When Repair Memory Helps and When It Hurts}
+
+The following statements are deliberately simple. They are not intended to prove that CORM is universally optimal. They clarify what any residual-memory method must satisfy to be worth submitting.
+
+\begin{definition}[Residual planning error]
+For a candidate $a$, define the nominal prediction error $b(a)=y_\theta(a)-\hat y_0(a)$ and the residual-estimation error $\epsilon_t(a)=b(a)-\hat r_t(a)$. A repaired planner with trust $\alpha\in[0,1]$ predicts $\hat y_\alpha(a)=\hat y_0(a)+\alpha \hat r_t(a)$.
+\end{definition}
+
+\begin{lemma}[Trust-bounded prediction error]
+For any action $a$ and trust $\alpha$,
+\begin{equation}
+\|y_\theta(a)-\hat y_\alpha(a)\|_2 \le (1-\alpha)\|b(a)\|_2+\alpha\|\epsilon_t(a)\|_2.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Substitute $y_\theta(a)=\hat y_0(a)+b(a)$ and $\hat y_\alpha(a)=\hat y_0(a)+\alpha\hat r_t(a)$. The error is $(1-\alpha)b(a)+\alpha(b(a)-\hat r_t(a))$. The result follows from the triangle inequality.
+\end{proof}
+
+The lemma exposes the core tradeoff. Trust helps only when residual-estimation error is smaller than nominal bias. If $\|\epsilon_t(a)\|_2$ is large, a smaller $\alpha$ is safer. This is why CORM reports trust and uncertainty rather than treating memory as always beneficial.
+
+\begin{proposition}[Sufficient condition for residual improvement]
+Consider two candidates $a^\star$ and $a_0$, where $a^\star$ has lower true target distance than $a_0$ by margin $\Delta>0$. If repaired prediction errors for both candidates are bounded by $\eta < \Delta/2$, then minimizing repaired target distance selects an action whose true target distance is no worse than $a^\star$ by at most $2\eta$.
+\end{proposition}
+
+\begin{proof}
+Let $d(a)=\|y_\theta(a)-g\|_2$ and $\hat d(a)=\|\hat y_\alpha(a)-g\|_2$. If $|\hat d(a)-d(a)|\le \eta$ for all compared actions, then $\hat d(a^\star)\le d(a^\star)+\eta$. Any selected action $\hat a$ satisfies $\hat d(\hat a)\le \hat d(a^\star)$. Therefore $d(\hat a)\le \hat d(\hat a)+\eta\le d(a^\star)+2\eta$.
+\end{proof}
+
+This is the positive case: if repeated deployment makes residuals predictable enough, memory can move the planner toward the hidden-deployment oracle. The proposition also explains why a large action library is not enough. More candidates help only if repaired predictions rank them accurately.
+
+\begin{theorem}[Stale-memory harm under hidden change points]
+There exists a two-action repeated-deployment problem with a single unobserved change point such that a persistent residual memory with fixed positive trust has strictly higher cumulative regret after the change point than a reset or robust baseline.
+\end{theorem}
+
+\begin{proof}
+Let the pre-change residual for action $a_1$ be $+\delta$ and for $a_2$ be $0$, and let target geometry make $a_1$ optimal after applying the $+\delta$ correction. After the hidden change point, reverse the residual sign for $a_1$ to $-\delta$ while leaving nominal predictions unchanged. A persistent memory with trust $\alpha>0$ continues to add a positive correction and ranks $a_1$ too favorably for enough episodes before adapting. A reset baseline has no stale correction, and a robust baseline that hedges both residual signs does not commit to the stale direction. Choosing $\delta$ larger than the nominal action margin gives strictly positive extra regret for the persistent memory on each stale episode.
+\end{proof}
+
+The theorem is not a pathology; it is the nonstationary split in miniature. A credible repair-memory paper must include stale-memory stress tests.
+
+\begin{proposition}[Safety-risk decomposition]
+Let $\hat v_0(a)$ be nominal violation, $\hat \rho_t(a)$ be predicted violation residual, and $e_v(a)=\rho_t(a)-\hat\rho_t(a)$. Then the true violation residual satisfies
+\begin{equation}
+v_\theta(a) \le \hat v_0(a)+\alpha\hat\rho_t(a)+|e_v(a)|+(1-\alpha)|\rho_t(a)|.
+\end{equation}
+Thus safety can fail because the nominal model is unsafe, the residual model is wrong, trust is too high, or the action library contains no safe high-quality primitive.
+\end{proposition}
+
+\begin{proof}
+Write $v_\theta=\hat v_0+\rho_t=\hat v_0+\alpha\hat\rho_t+(\rho_t-\alpha\hat\rho_t)$ and bound the remaining term by adding and subtracting $\alpha\rho_t$.
+\end{proof}
+
+This decomposition motivates reporting both violation rate and shield activation. A method that improves final distance by taking unsafe actions is not submission-ready.
+
+\section{Experimental Protocol}
+
+\subsection{Task and action library}
+
+The MuJoCo scene contains a cylindrical puck, a spherical pusher, and a cylindrical obstacle. Each candidate action is a straight push primitive parameterized by angle, lateral offset, and push distance. The frozen action library uses seven target-relative angles, three lateral offsets, and three distance scales, giving 63 candidates per task. All methods choose from the same candidates.
+
+For each candidate, the runner evaluates a nominal rollout, a hidden-deployment rollout, and robust branch rollouts. These rollouts are shared by all methods for that task, which prevents a method from receiving extra simulation budget. Only the oracle can use hidden-deployment energies for action selection.
+
+\subsection{Frozen splits}
+
+The final run uses nine main splits: nominal, low friction, high friction, heavy object, light object, actuation bias, obstacle shift, nonstationary deployment shift, and combined shift. Each split changes a different part of the hidden deployment. The combined shift samples broad changes across mass, friction, gain, angle bias, lateral bias, and obstacle displacement. The nonstationary split deliberately changes the hidden deployment halfway through the stream.
+
+\subsection{Evidence size and statistics}
+
+The frozen command uses 8 seeds, 32 episodes per seed/split/method, 9 main splits, and 11 main methods, producing \MainRawRows{} main raw rows. Ablations are run on combined and nonstationary splits, producing \AblationRawRows{} ablation rows. We report mean success, final distance, violation rate, energy regret, 95 percent confidence intervals, paired bootstrap intervals, randomized sign-flip $p$ values, learning phases, trust, uncertainty, shield activation, and residual prediction error.
+
+The protocol was frozen after smoke tests and two documented development runs. The first medium development run showed that an always-on safety penalty was harmful. The method was fixed before freeze by making the shield selective. After the freeze, the method, splits, seeds, gates, baselines, and hyperparameters were not changed.
+
+\section{Frozen Results}
+
+\subsection{Aggregate outcome}
+
+The frozen terminal decision is \textbf{\TerminalDecision}. Aggregate CORM success is \CORMAggSuccess{}\%, aggregate oracle regret is \CORMAggRegret{}, aggregate violation rate is \CORMAggViolation{}\%, mean trust is \CORMAggTrust{}, and shield activation is \CORMAggShield{}\%. Table~\ref{tab:v5-aggregate} gives the full aggregate comparison.
+
+\IfFileExists{results_tables.tex}{\input{results_tables.tex}}{}
+
+\subsection{Main split results}
+
+Table~\ref{tab:v5-success} reports success. Table~\ref{tab:v5-regret} reports regret to the hidden-deployment oracle, and Table~\ref{tab:v5-safety} reports safety violations. These three views are all needed. A repair memory that improves regret but increases violations is not acceptable; a robust controller that is safe but never reaches the target is also incomplete.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{../figures/repair_success_by_split.png}
-\caption{Repair-memory success rates across deployment shifts. The proposed method does not separate from nominal, robust, or simple repair baselines.}
+\caption{Frozen success rates by deployment split. CORM must be interpreted against nominal MPC, robust MPC, simple memory baselines, online ridge residual, and the oracle.}
 \label{fig:success}
 \end{figure}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{../figures/repair_learning_curve.png}
-\caption{Average learning curve over repeated deployment tasks. Persistent repair memory does not show the required late-stream improvement.}
+\includegraphics[width=0.82\linewidth]{../figures/repair_learning_curve.png}
+\caption{Repeated-deployment learning curve averaged across splits. The key question is whether late-stream performance improves without increasing violations.}
 \label{fig:learning}
 \end{figure}
 
-\section{Ablations}
-The combined-shift ablation is also negative. Repair memory reaches $0.117 \pm 0.058$ success and 0.134 regret. Nominal/reset memory reaches $0.158 \pm 0.066$ success, while oracle reaches $0.258 \pm 0.079$ success and zero regret. Removing context or using global repair is not worse enough to isolate the proposed retrieval mechanism.
+\subsection{Stress-test pairwise deltas}
+
+The most important rows are the combined and nonstationary stress tests. Table~\ref{tab:v5-pairwise-stress} reports paired CORM deltas against strong baselines. Positive success and regret-improvement deltas favor CORM; positive violation deltas hurt CORM. These paired rows are more informative than unpaired aggregate differences because every method is evaluated on the same seed, episode, split, and candidate set.
+
+\subsection{Ablations}
+
+Table~\ref{tab:v5-ablation} reports ablations on the two harshest splits. The no-safety ablation tests whether the shield is doing useful work. The no-uncertainty ablation tests whether full-trust residual prediction is overconfident. The no-context and limited-memory ablations test whether CORM is simply a global residual average in disguise.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{../figures/repair_ablation_regret.png}
-\caption{Combined-shift ablation regret. Lower is better. The proposed memory mechanism is not the best non-oracle variant.}
+\includegraphics[width=0.86\linewidth]{../figures/repair_ablation_regret.png}
+\caption{Ablation regret on combined and nonstationary shifts. Lower is better.}
 \label{fig:ablation}
 \end{figure}
 
-\section{Why This Kills the Current Paper}
-The core claim requires reusable embodied repairs to improve later decisions under recurring physical shift. The evidence does not support that claim. The current kNN residual memory sometimes lowers regret against global repair, but it does not deliver a reliable success gain, does not improve safety enough, and does not beat robust MPC. A polished ICLR-main paper would therefore be misleading.
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{../figures/repair_trust_calibration.png}
+\caption{CORM trust diagnostics. Trust should rise only when residual predictions become reliable; prediction error should be reported rather than hidden.}
+\label{fig:trust}
+\end{figure}
 
-\section{Limitations and Revival Conditions}
-This is a custom MuJoCo benchmark, not hardware or a public long-horizon manipulation benchmark. The repair model is simple kNN residual retrieval rather than a learned world-model repair module. A future revival would need a learned repair memory, stronger safety handling, and clear gains over robust MPC on CALVIN/FurnitureBench-like benchmarks or hardware.
+\section{Failure Analysis}
 
-\section{Gate Decision}
-The terminal decision is \textbf{KILL\_ARCHIVE}. The v4 rebuild rescues the paper from synthetic evidence, but the real evidence kills the claim.
+The benchmark is designed so that failure is scientifically useful. We analyze four recurring failure modes.
+
+\textbf{Residual aliasing.} Different physical causes can produce similar one-step residuals on one task and different residuals on the next. kNN memory is especially vulnerable because it retrieves local observations without fitting a deployment-level structure. CORM reduces but does not eliminate this problem.
+
+\textbf{Action-library discretization.} The oracle is limited to the same candidate set, but some tasks have no action that simultaneously reaches the target and clears the obstacle. In these cases, residual prediction cannot create a missing primitive. A stronger submission would need richer contact primitives or trajectory optimization.
+
+\textbf{Safety ambiguity.} Obstacle violation is a discontinuous event under contact. Small residual errors near the clearance boundary can flip the violation indicator. This is why we report violation rate, predicted violation risk, and shield activation separately.
+
+\textbf{Stale memory.} The nonstationary split changes hidden deployment parameters halfway through the stream. A useful memory must either detect the change or reduce trust fast enough to avoid stale corrections. The shock variable is a simple mechanism; it is not a full change-point detector.
+
+\section{Related Work}
+
+The method sits at the intersection of model predictive control, online system identification, memory-based reasoning, and model-based reinforcement learning. MPC provides the decision framework and robust MPC motivates worst-case branch baselines \citep{mayne2000mpc,bemporad1999robust,mayne2005robust}. System identification and filtering provide the classical language for estimating dynamics residuals online \citep{ljung1999system,anderson1979optimal}. Dyna-style architectures connect learned models with planning updates \citep{sutton1991dyna}, while PILCO, PETS, model-based policy optimization, and neural dynamics models show how learned uncertainty can improve data efficiency \citep{deisenroth2011pilco,chua2018pets,janner2019mbpo,nagabandi2018neural}.
+
+Repair memory also resembles case-based reasoning and episodic memory \citep{aamodt1994case,pmlr-v80-santoro18a}. The difference is that robot contact residuals are safety-critical and physically structured; naive retrieval is not enough. Fast adaptation and meta-learning work such as MAML and RL$^2$ ask how policies adapt from experience \citep{finn2017maml,duan2016rl2}. Our benchmark is narrower: it asks whether a compact residual object improves model-based action selection under repeated deployment.
+
+Finally, long-horizon robot benchmarks such as CALVIN and FurnitureBench expose the kind of persistent real-world mismatch that would be needed for a future submission-grade version \citep{mees2022calvin,heo2025furniturebench}. This paper does not claim that evidence. It uses MuJoCo as a controlled falsification and development environment.
+
+\section{Limitations}
+
+The largest limitation is external validity. The evidence is real MuJoCo evidence, not hardware. It is also a custom planar pushing benchmark, not a public manipulation suite. A genuine ICLR-main submission would need public benchmark or hardware results, stronger trajectory optimization, and a more expressive residual model.
+
+The second limitation is method capacity. CORM deliberately uses ridge regression to keep CPU and RAM requirements light. This is a virtue for reproducibility but may underfit complex contact modes. A learned residual world model could perform better, but it would need stronger regularization and more extensive ablations.
+
+The third limitation is safety. The selective shield avoids false-positive continuous penalties, but it is not a formal control barrier certificate. The safety decomposition in Section~4 explains why violations can remain even with calibrated residuals.
+
+The fourth limitation is decision scope. The frozen decision \textbf{\TerminalDecision} is a package-level gate, not a universal claim about repair memory. A negative decision kills this implementation and evidence package; it does not prove that all repair-memory systems are impossible.
+
+\section{Conclusion}
+
+The original repair-memory idea was too weak: a kNN residual cache did not survive strong baselines. CORM is the principled rebuild: an online residual model with trust calibration, stale-memory shock, and selective safety shielding. The frozen evaluation is intentionally adversarial and reports all predefined metrics. The terminal decision is \textbf{\TerminalDecision}. That decision should be treated as the honest state of the paper: not ICLR-main ready, but substantially more rigorous than the starting artifact.
+
+\clearpage
+\section*{Reproducibility Statement}
+
+The runner is `src/run\_experiment.py'. The final command is recorded in `docs/paper63\_protocol\_freeze\_20260619.md'. The build script is `scripts/build\_submission\_pdf.ps1'. The validation script checks row counts, page count, Downloads-only PDF placement, and Desktop absence. The final numbered PDF is written to `C:/Users/wangz/Downloads/63.pdf' and is not copied to the visible Desktop.
+
+\section*{Appendix A: Frozen Protocol Details}
+
+The main raw table contains one row for every split, seed, episode, and method. Each row records hidden mass, hidden friction, actuation gain, angle bias, lateral bias, initial distance, candidate count, chosen action, success, final distance, violation, true energy, oracle energy, regret, decision trust, uncertainty, predicted violation risk, shield activation, stale score, residual prediction error, and predicted score.
+
+The ablation table repeats the same schema on combined and nonstationary splits. This makes ablations directly comparable to the main run. Development-only outputs are ignored by git and are not used in the frozen build.
+
+\section*{Appendix B: Additional Generated Tables}
+
+\IfFileExists{appendix_results_tables.tex}{\input{appendix_results_tables.tex}}{}
+
+\section*{Appendix C: Reviewer Audit}
+
+\textbf{Attack: The method is just online ridge regression.} The online ridge baseline is included. CORM must beat or safely tie that baseline under the frozen gate. If it does not, the decision becomes kill/archive.
+
+\textbf{Attack: Robust MPC is enough.} Robust worst-case MPC is included and is evaluated on the same candidate sets. The paper reports paired deltas against it on every split.
+
+\textbf{Attack: Safety is hidden in the score.} Violation rate, predicted violation risk, and shield activation are all reported. The no-safety ablation is run on the hardest splits.
+
+\textbf{Attack: The method was tuned after seeing final results.} The development log records pre-freeze failures and fixes. The protocol-freeze document fixes seeds, splits, methods, and gates before the final run.
+
+\textbf{Attack: Simulation is not enough.} Correct. This is why the paper does not claim ICLR-main readiness. The strongest acceptable decision is strong-revise unless hardware or public benchmark evidence is added.
+
+\section*{Appendix D: Split-by-Split Interpretation}
+
+This appendix records the interpretation that should accompany the generated tables. It is included to prevent a misleading reading in which a single aggregate number is used to rescue the method. Repair memory is a deployment mechanism; its credibility depends on how it behaves under each kind of shift.
+
+\textbf{Nominal split.} The nominal split is not a free win. Even when the hidden deployment is close to the nominal simulator, contact discontinuities, obstacle placement, and finite action-library resolution create residual errors. A useful memory should not overfit noise in this regime. The nominal rows therefore test whether CORM can remain conservative when there is little systematic residual to exploit. Strong nominal performance alone would not validate the method, because the practical motivation for memory appears under persistent shift. Poor nominal performance, however, would be a serious red flag because it would mean memory is damaging the easiest case.
+
+\textbf{Low-friction split.} Low friction creates a recurring distance-gain mismatch: pushes tend to move the puck farther than nominal rollouts predict. A global residual can already capture part of this effect, so CORM must show more than a mean correction. The relevant question is whether context features and online ridge structure improve action ranking over global repair without increasing obstacle violations. If the generated tables show only a small margin over global repair, the correct interpretation is that the deployment contains reusable residual structure but not enough structure to justify the full mechanism.
+
+\textbf{High-friction split.} High friction reverses the direction of the low-friction bias. It is a useful check against asymmetric tuning. A repair memory tuned to only add distance can look good under low friction and fail under high friction. CORM's residual regression can represent either sign, but the finite stream length limits how quickly it can identify the sign. This split should be read together with the early/middle/late learning tables: a method that begins poorly but improves late is different from a method that remains flat.
+
+\textbf{Heavy-object split.} Heavy objects combine mass and friction effects. The same push distance can produce a smaller displacement and different contact settling behavior. This split is where online system identification should, in principle, help. The failure mode is that selected-action residuals are biased by the policy's own choices: if the method avoids certain offsets or angles early, it receives no residual evidence about them. This is an inherent partial-feedback problem and a reason to avoid overstating the result.
+
+\textbf{Light-object split.} Light objects often make actions more aggressive and can increase safety risk near obstacles. A low-regret method that becomes unsafe here is not acceptable. The violation-rate table is therefore as important as the success table. The no-uncertainty ablation is especially relevant: if full trust increases success while safety degrades, the paper should treat that as an overconfidence failure, not as a better method.
+
+\textbf{Actuation-bias split.} Actuation bias is the most natural setting for residual repair because an angle or lateral bias is persistent across tasks. A linear residual model should be able to identify part of it from repeated observations. If CORM fails to separate from online ridge residual here, the calibration layer is not adding enough beyond ordinary online regression. That is one reason the frozen gate includes online ridge as a strong baseline.
+
+\textbf{Obstacle-shift split.} Obstacle shift exposes a limitation of residual displacement memories. The hidden error is not only in puck displacement; it is also in the safety geometry. A residual that corrects final position may still choose an action whose true obstacle clearance is worse than nominal. This split motivates future work on explicit scene-geometry repair rather than only outcome repair. A strong result on final distance but weak violation behavior should not be treated as a submission-ready win.
+
+\textbf{Nonstationary deployment split.} The nonstationary split is the harshest test of persistent memory. A memory that helps before the change point can become stale afterward. CORM uses a shock variable to reduce trust after unexpectedly large residual prediction errors, but this is only a simple detector. The frozen decision audit shows why this split matters: if safety worsens relative to robust MPC after a hidden change, the method cannot claim reliable deployment memory. The correct conclusion is not that memory is useless, but that stale-memory detection is a first-class part of the problem.
+
+\textbf{Combined shift.} The combined split is a stress mixture, not a clean mechanism probe. It tests whether all components interact safely: residual estimation, trust calibration, candidate ranking, and obstacle handling. A method that wins one clean shift but fails combined shift is not ready for submission as a general deployment-memory system. The combined split is also where the oracle gap is most informative. A large oracle gap means the candidate library contains better choices, but the policy cannot identify them from available evidence.
+
+\section*{Appendix E: Artifact Schema and Reproducibility Details}
+
+The artifact is designed so that a reviewer can audit the claim without trusting the prose. The main raw CSV, `repair\_memory\_raw.csv', is the authoritative evidence table. Each row corresponds to one method decision on one paired task. The key columns are:
+
+\textbf{Identification columns.} `seed', `episode', `phase', `deployment\_phase', `split', and `method' identify the paired case. The same seed, episode, and split can be used to compare methods directly because all methods receive the same candidate set and hidden deployment.
+
+\textbf{Hidden deployment columns.} `true\_mass', `true\_friction', `distance\_gain', `angle\_bias', and `lateral\_bias' record the deployment parameters used by the simulator. These are logged for audit, not exposed to deployable methods. Only the oracle uses hidden-deployment rollouts for selection.
+
+\textbf{Task and action columns.} `initial\_distance', `candidate\_count', and `chosen\_action' describe the task scale and selected primitive. The frozen candidate count is 63. Candidate count is logged to catch accidental action-library changes.
+
+\textbf{Outcome columns.} `success', `final\_distance', `violation', `energy', `oracle\_energy', and `energy\_regret' are the primary evaluation quantities. Regret is always computed against the same hidden-deployment oracle and is never normalized post hoc.
+
+\textbf{Memory diagnostic columns.} `decision\_trust', `decision\_uncertainty', `predicted\_violation\_risk', `shield\_active', `stale\_score', and `repair\_prediction\_error' expose the internal state of repair methods. Non-memory baselines have zero trust and shield values. These diagnostics are important because a memory method can appear to improve success while becoming overconfident or unsafe.
+
+\textbf{Ablation schema.} `repair\_memory\_ablation\_raw.csv' uses the same schema but only on combined and nonstationary splits. Keeping the same schema prevents a common ablation mistake: reporting a different metric set for weakened methods than for the proposed method.
+
+\textbf{Generated summaries.} `repair\_memory\_metrics.csv' aggregates by split and method. `repair\_memory\_seed\_metrics.csv' keeps seed-level summaries. `repair\_memory\_pairwise.csv' contains CORM deltas against every main baseline for each split. `repair\_memory\_learning\_curve.csv' aggregates early, middle, and late stream phases. `repair\_memory\_calibration.csv' records trust and prediction-error diagnostics.
+
+\textbf{Validation.} The validation script checks row counts, PDF placement, page count, and Desktop absence. It is intentionally mechanical. It cannot decide whether the idea is good, but it can catch missing evidence, accidental short PDFs, and artifact-placement violations.
+
+\section*{Appendix F: What Would Be Required to Revive the Paper}
+
+The frozen decision is \textbf{\TerminalDecision}. A future revival should not simply lower the gate. It should address the mechanisms exposed by the kill/archive result.
+
+\textbf{First, stale-memory detection must be explicit.} The shock variable is a useful diagnostic, but it is not a principled change-point model. A revived method should compare persistent-memory, reset, and detected-change variants under controlled hidden change points. It should report detection delay, false reset rate, and safety during the transition period.
+
+\textbf{Second, repair should include scene geometry, not only outcome residuals.} Obstacle-shift failures show that final-position correction is insufficient. A stronger method would maintain a belief over obstacle displacement or clearance residuals and use it inside a safety-aware planner. That belief should be evaluated with calibration metrics, not only downstream success.
+
+\textbf{Third, exploration bias must be handled.} CORM observes residuals only for executed actions. This creates a partial-feedback loop: the memory improves where the policy already acts and remains uncertain elsewhere. A revival should test safe information-gathering pushes or conservative Thompson-style action selection. Any exploration mechanism must pay its own cost in the reported energy or task budget.
+
+\textbf{Fourth, the robust baseline should get stronger, not weaker.} The robust MPC baseline here uses a small branch set. A future paper should include richer branch uncertainty, CVaR-style scoring, and possibly sampling-based model predictive path integral control \citep{williams2017mppi}. If repair memory cannot beat stronger robust planners, the practical contribution is limited.
+
+\textbf{Fifth, the evidence must leave the custom simulator.} The current result is useful because it is controlled and reproducible, but it is not enough for ICLR-main readiness. A revived paper should evaluate on a public manipulation benchmark such as CALVIN or FurnitureBench \citep{mees2022calvin,heo2025furniturebench}, or on hardware with repeated deployment shifts that can be independently inspected.
+
+\textbf{Sixth, the claim should remain narrow.} The safe claim is not that robots need memory in general; it is that calibrated, uncertainty-aware residual memory can help under recurring physical deployment shifts when stale-memory and safety failure modes are controlled. If the evidence does not support that claim, the paper should remain archived.
+
+\bibliography{references}
+\bibliographystyle{iclr2026_conference}
 
 \end{document}
